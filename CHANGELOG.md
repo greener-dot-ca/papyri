@@ -6,6 +6,16 @@ Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.4.0] - 2026-06-30
+This version includes changes to the template files, run `papyri` with `--copytemplate` at least once.
+### Added
+- web map search now covers banner names and every map ID at once, regardless of which overlays are shown; selecting a result enables its overlay and zooms to fit it (whole map polygon, or the banner location)
+### Changed
+- map results are listed as "map ID xxx" in the search box
+- banner labels are centered under the banner icon
+### Fixed
+- browser no longer serves a stale cached copy of the inline web map code (added a no-cache header to `index.html`)
+
 # [2.3.0] - 2026-06-30
 This version includes changes to the template files, run `papyri` with `--copytemplate` at least once.
 ### Added

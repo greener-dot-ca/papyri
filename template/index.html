@@ -7,7 +7,11 @@
 
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
+    <!-- The web-map JS is inline here, so a cached page means stale code.
+         Force the browser to revalidate index.html on every load. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+
     <link rel="shortcut icon" type="image/png" href="./papyri-32x32.png" />
     <link rel="icon" type="image/png" href="./papyri-32x32.png"/>
 
@@ -53,6 +57,10 @@
     const tilesUrl = './tiles/{id}/{z}/{x}/{y}.png';
     let overlays = {};
     let overlaysHash = {};
+    // Per-dimension search records: { displayText: loc } where loc is an
+    // L.latLng carrying .overlay (which overlay it belongs to) and, for maps,
+    // .bounds. This is exactly the shape the search plugin indexes.
+    let searchIndex = {};
     let allBanners = [];
     let map;
     let control;
@@ -166,16 +174,44 @@
         }
     };
 
-    function createSearchControl(dimension) {
+    // The search box always covers everything in the current dimension —
+    // banner names and every map ID — regardless of which overlays are
+    // currently shown. searchIndex[dimension] holds the records, each tagging
+    // the overlay it belongs to so the result can switch that overlay on.
+    function createSearchControl() {
         return new L.Control.Search({
             position: 'topleft',
-            layer: overlays[dimension]["banners"],
             initial: false,
-            zoom: 18,
+            // Feed the index for the current dimension straight from memory,
+            // so search is independent of which layers are on the map. It's
+            // already in the plugin's {displayText: location} record shape, so
+            // formatData just passes it through.
+            sourceData: function(text, callback) {
+                callback(searchIndex[currentDimension] || {});
+            },
+            formatData: function(records) {
+                return records;
+            },
+            // Make sure the result's overlay is enabled so it's actually
+            // visible, then fit a map polygon to view (point results like
+            // banners have no bounds, so fall back to a fixed zoom).
+            moveToLocation: function(latlng, title, map) {
+                const overlay = overlays[currentDimension][latlng.overlay];
+                if (overlay && !map.hasLayer(overlay)) {
+                    overlay.addTo(map);
+                }
+                if (latlng.bounds) {
+                    map.fitBounds(latlng.bounds);
+                } else {
+                    map.setView(latlng, 18);
+                }
+            },
             marker: false,
-            propertyName: 'title',
             autoCollapse: true,
             autoType: false,
+            // Every map is indexed as "map ID xxx", so a broad query can match
+            // thousands; cap how many tips render to keep the list responsive.
+            tooltipLimit: 50,
             minLength: 1
         });
     }
@@ -225,6 +261,7 @@
             overlaysHash[val + "_" + "banners"] = overlays[val]["banners"];
             overlaysHash[val + "_" + "maps"] = overlays[val]["maps"];
             overlaysHash[val + "_" + "custom"] = overlays[val]["custom"];
+            searchIndex[val] = {};
         }
 
         const [bannersData] = await Promise.all([
@@ -253,16 +290,33 @@
                 title: bannerItem.name,
                 icon: L.divIcon({
                     className: 'banner-marker',
+                    iconSize: [24, 32],
+                    iconAnchor: [12, 16],
                     html: `<img class="banner-image" src="./assets/banner-images/${bannerItem.color}banner.png"/><span class="banner-name">${bannerItem.name}</span>`
                 })
             });
 
             marker.feature = geoJsonFeature;
             marker.addTo(overlays[bannerItem.dimension]['banners']);
+
+            const bannerLoc = L.latLng(bannerItem.Z, bannerItem.X);
+            bannerLoc.overlay = 'banners';
+            searchIndex[bannerItem.dimension][bannerItem.name] = bannerLoc;
         }
 
         for (const mapFeature of mapsData) {
-            overlays[mapFeature.properties.dimension]['maps'].addData(mapFeature);
+            const dimension = mapFeature.properties.dimension;
+            overlays[dimension]['maps'].addData(mapFeature);
+
+            // Index every map ID individually as "map ID xxx", pointing at the
+            // map polygon's bounds so selecting it fits the whole map to view.
+            const bounds = L.geoJSON(mapFeature).getBounds();
+            for (const amap of mapFeature.properties.maps) {
+                const mapLoc = bounds.getCenter();
+                mapLoc.overlay = 'maps';
+                mapLoc.bounds = bounds;
+                searchIndex[dimension][`map ID ${amap.id}`] = mapLoc;
+            }
         }
 
         map = L.map('map', {
@@ -400,7 +454,9 @@
         control.addTo(map);
         const hash = new L.Hash(map, overlaysHash);
 
-        searchControl = createSearchControl(currentDimension);
+        // The control reads searchIndex[currentDimension] live, so it never
+        // needs rebuilding — it always reflects the current dimension.
+        searchControl = createSearchControl();
         map.addControl(searchControl);
 
         map.on('baselayerchange', function(event) {
@@ -413,10 +469,6 @@
                 .map(([overlayName]) => overlayName);
 
             currentDimension = event.name;
-            map.removeControl(searchControl);
-
-            searchControl = createSearchControl(currentDimension);
-            map.addControl(searchControl);
 
             for (const [dimName, dimOverlays] of Object.entries(overlays)) {
                 for (const [overlayName, overlay] of Object.entries(dimOverlays)) {
