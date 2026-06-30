@@ -8,6 +8,9 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [2.3.0] - 2026-06-30
 This version includes changes to the template files, run `papyri` with `--copytemplate` at least once.
+### Added
+- faint grid on the web map aligned to the .mca region files (512x512), drawn beneath every layer and aligned to the mouse-position coordinates
+- map panning and the region grid are limited to the Minecraft world border (configurable via the `WORLD_BORDER` constant in the template)
 ### Changed
 - all web map dependencies are now vendored locally — no runtime CDN requests, fully offline
 - updated Leaflet 1.4.0 -> 1.9.4, leaflet.markercluster 1.4.1 -> 1.5.3, leaflet-search -> 4.0.0

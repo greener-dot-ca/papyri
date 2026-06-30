@@ -81,4 +81,10 @@ Each file listed in the manifest should be a JSON array of GeoJSON features with
 - If `overlays.json` doesn't exist, custom overlays are skipped silently
 - If an individual overlay file fails to load, a warning is logged but other overlays continue loading
 
+## Region grid
+
+The web map draws a faint grid aligned to Minecraft's `.mca` region files (one line every 512 blocks). It sits beneath every other layer, so it only shows through where the map hasn't been rendered yet, and it lines up exactly with the X/Z coordinates shown in the mouse-position readout.
+
+Both the grid and map panning are limited to the bounds of a Minecraft world (the default world border, ±29,999,984 blocks from origin). If your server uses a different world border, change the `WORLD_BORDER` constant near the top of the template's `index.html`.
+
 This project is licensed under the terms of the MIT license.
