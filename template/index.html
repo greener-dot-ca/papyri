@@ -272,6 +272,19 @@
             maxBoundsViscosity: 1.0
         });
 
+        // Pixel-art tiles seam when the map pane comes to rest at a fractional
+        // pixel offset (e.g. after a pan), because each tile is rasterized
+        // independently and a sub-pixel gap opens between neighbours. Snap the
+        // pane to whole pixels once movement settles so tiles stay aligned.
+        function snapMapPaneToPixel() {
+            const pane = map.getPanes().mapPane;
+            const pos = L.DomUtil.getPosition(pane);
+            if (pos) {
+                L.DomUtil.setPosition(pane, L.point(Math.round(pos.x), Math.round(pos.y)));
+            }
+        }
+        map.on('moveend zoomend viewreset', snapMapPaneToPixel);
+
         // Faint grid aligned to the .mca region files (512x512 blocks).
         // Lives in its own pane below the base tiles, so it sits under
         // everything and only shows through where the map isn't rendered yet.
