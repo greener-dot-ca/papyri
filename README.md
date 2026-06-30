@@ -42,5 +42,43 @@ optional arguments:
 
 Once it's done, the contents of the output folder can be served as a website. It's completely static so it can be put in an S3 bucket a github project or hosted locally on your machine by running something like `python3 -m http.server` inside the output folder.
 
+## Custom Overlays
+
+You can add custom GeoJSON overlays to your map by creating an `overlays.json` manifest file in your output folder:
+
+```json
+{
+    "overlays": [
+        "custom.json",
+        "roads.json",
+        "points-of-interest.json"
+    ]
+}
+```
+
+Each file listed in the manifest should be a JSON array of GeoJSON features with a `dimension` property:
+
+```json
+[
+    {
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [[0, 0], [100, 100]]
+        },
+        "properties": {
+            "dimension": "minecraft@overworld",
+            "style": {
+                "color": "#ff0000",
+                "weight": 2
+            }
+        }
+    }
+]
+```
+
+- Overlay files are loaded in parallel for performance
+- If `overlays.json` doesn't exist, custom overlays are skipped silently
+- If an individual overlay file fails to load, a warning is logged but other overlays continue loading
 
 This project is licensed under the terms of the MIT license.

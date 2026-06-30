@@ -42,34 +42,29 @@
 
 <script>
 
-    dimSet = new Set();
-    tileLayers = new Object();
-    tilesUrl = './tiles/{id}/{z}/{x}/{y}.png'
-    overlays = new Object();
-    overlaysHash = new Object();
-    allBanners = [];
-    
-    function loadJSON(file, callback) {   
-        var xobj = new XMLHttpRequest();
-        xobj.overrideMimeType("application/json");
-        xobj.open('GET', file, true); // Replace 'my_data' with the path to your file
-        xobj.onreadystatechange = function () {
-            if (xobj.readyState == 4 && xobj.status == "200") {
-            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-            callback(xobj.responseText);
-            }
-        };
-        xobj.send(null);  
+    const dimSet = new Set();
+    let tileLayers = {};
+    const tilesUrl = './tiles/{id}/{z}/{x}/{y}.png';
+    let overlays = {};
+    let overlaysHash = {};
+    let allBanners = [];
+    let map;
+    let control;
+    let searchControl;
+    let currentDimension = "minecraft@overworld";
+
+    async function loadJSON(file) {
+        const response = await fetch(file);
+        return response.json();
     }
 
-
-    factor = 1 / 2 ** 16
+    const factor = 1 / 2 ** 16;
     L.CRS.pr = L.extend({}, L.CRS.Simple, {
         projection: L.Projection.LonLat,
         transformation: new L.Transformation(
-            factor, 
-            64 * factor, 
-            factor, 
+            factor,
+            64 * factor,
+            factor,
             64 * factor),
         scale: function(zoom) {
             return Math.pow(2, zoom);
@@ -80,206 +75,87 @@
         },
 
         distance: function(latlng1, latlng2) {
-            var dx = latlng2.lng - latlng1.lng,
-            dy = latlng2.lat - latlng1.lat;
-            
+            const dx = latlng2.lng - latlng1.lng;
+            const dy = latlng2.lat - latlng1.lat;
+
             return Math.sqrt(dx * dx + dy * dy);
         },
-        
+
         infinite: true
     });
-    
+
 
     const IDcolors = ["red", "blue", "green", "purple", "orange"];
-    const scaleText = ["1:1", "1:2", "1:4", "1:8", "1:16"]
+    const scaleText = ["1:1", "1:2", "1:4", "1:8", "1:16"];
     const regionGradient = ["#fb0004","#f70008","#f3000c","#ef0010","#eb0014","#e70018","#e4001b","#e0001f","#dc0023","#d80027","#d4002b","#d0002f","#cc0033","#c80037","#c4003b","#c0003f","#bc0043","#b80047","#b4004b","#b1004e","#ad0052","#a90056","#a5005a","#a1005e","#9d0062","#990066","#95006a","#91006e","#8d0072","#890076","#85007a","#81007e","#7e0081","#7a0085","#760089","#72008d","#6e0091","#6a0095","#660099","#62009d","#5e00a1","#5a00a5","#5600a9","#5200ad","#4e00b1","#4b00b4","#4700b8","#4300bc","#3f00c0","#3b00c4","#3700c8","#3300cc","#2f00d0","#2b00d4","#2700d8","#2300dc","#1f00e0","#1b00e4","#1800e7","#1400eb","#1000ef","#0c00f3","#0800f7","#0400fb"];
 
-    clusterGroupConfig =  {
+    const clusterGroupConfig = {
         iconCreateFunction: function(cluster) {
-        return L.divIcon({
-            iconSize: [576, 48],
-            className: 'banner-marker',
-            html: '<img class="banner-image" src="./assets/banner-images/multiple.png"/><span class="banner-name">' + cluster.getChildCount() + '</class>' 
+            return L.divIcon({
+                iconSize: [576, 48],
+                className: 'banner-marker',
+                html: `<img class="banner-image" src="./assets/banner-images/multiple.png"/><span class="banner-name">${cluster.getChildCount()}</span>`
             });
         }
-    }
-    
+    };
+
     function handleClick(e) {
-        var html = '<span style="font-size:16px;font-family:unifont">';
-        var match = leafletPip.pointInLayer(
-        // the clicked point
-        e.latlng,
-        // this layer
-        e.target,
-        // whether to stop at first match
-        false);
+        let html = '<span style="font-size:16px;font-family:unifont">';
+        const match = leafletPip.pointInLayer(
+            e.latlng,
+            e.target,
+            false
+        );
         if (match.length) {
-            for (var i = 0; i < match.length; i++) {
-                var maps = match[i].feature.properties.maps
-                scale = match[i].feature.properties.scale 
-                html += "<span style=\"color:" + IDcolors[scale] + "\">"
-                html +=  scaleText[scale] + " scale:</span></br>"
-                for (var j = 0; j < maps.length; j++) {
-                    html += "map ID " + maps[j].id + "</br>"
-                    html += '<img src="./maps/' + maps[j].filename + '" height="256" width="256"/></br>'
-                    var banners = maps[j].banners
-                    html += "<table>"
-                    for (var k = 0; k < banners.length; k++) {
-                        html += "<tr>"
-                        html += '<td style="vertical-align: top"><img style="float: left;" src="./assets/banner-images/'
-                        + banners[k][4] + 'banner.png"/></td>' +
-                        '<td>text: "'+ banners[k][3] + '"</br>' +
-                        " XYZ: " + banners[k][0] + " / " + banners[k][1] + " / " + banners[k][2] + "</br></td>"
-                        html += "</tr>"
+            for (const m of match) {
+                const maps = m.feature.properties.maps;
+                const scale = m.feature.properties.scale;
+                html += `<span style="color:${IDcolors[scale]}">`;
+                html += `${scaleText[scale]} scale:</span></br>`;
+                for (const mapItem of maps) {
+                    html += `map ID ${mapItem.id}</br>`;
+                    html += `<img src="./maps/${mapItem.filename}" height="256" width="256"/></br>`;
+                    const banners = mapItem.banners;
+                    html += "<table>";
+                    for (const banner of banners) {
+                        html += "<tr>";
+                        html += `<td style="vertical-align: top"><img style="float: left;" src="./assets/banner-images/${banner[4]}banner.png"/></td>`;
+                        html += `<td>text: "${banner[3]}"</br> XYZ: ${banner[0]} / ${banner[1]} / ${banner[2]}</br></td>`;
+                        html += "</tr>";
                     }
-                    var frames = maps[j].frames
-                    for (var k = 0; k < frames.length; k++) {
-                        html += "<tr>"
-                        html += '<td><img src="./assets/banner-images/marker.png" style="transform: rotate(' + frames[k]["rotation"]+ 'deg);"></td>'
-                        html += "<td>XYZ: " + frames[k]["X"] + " / " + frames[k].Y + " / " + frames[k].Z + "</br></td>"
-                        html += "</tr>"
+                    const frames = mapItem.frames;
+                    for (const frame of frames) {
+                        html += "<tr>";
+                        html += `<td><img src="./assets/banner-images/marker.png" style="transform: rotate(${frame.rotation}deg);"></td>`;
+                        html += `<td>XYZ: ${frame.X} / ${frame.Y} / ${frame.Z}</br></td>`;
+                        html += "</tr>";
                     }
-                    html += "</table></br>"
+                    html += "</table></br>";
                 }
             }
-        html += "</span>"
+            html += "</span>";
         }
         if (html) {
-            map.openPopup(html, e.latlng, {maxHeight:320, maxWidth:300, minWidth:300});
-        }
-    }
-    
-    styleMaps = { style: function (feature) {
-            return {color: IDcolors[feature.properties.scale]}
-        }
-    }
-                
-    styleCustom = { style: function (feature) {
-            return feature.properties.style
+            map.openPopup(html, e.latlng, {maxHeight: 320, maxWidth: 300, minWidth: 300});
         }
     }
 
-    loadJSON('maps.json', function(response) {
-        // Parse JSON string into object
-        markers = JSON.parse(response);
-        for ( var i=0; i < markers.length; ++i ) {
-            dimSet.add(markers[i].properties.dimension);
-        };
-        
-        for (var it = dimSet.values(), val= null; val=it.next().value;) {
-            tileLayers[val] = L.tileLayer(tilesUrl, {id: val, maxZoom: 20, maxNativeZoom: 17});
-            overlays[val] = {"banners": L.markerClusterGroup(clusterGroupConfig),
-                             "custom": L.geoJSON(null, styleCustom),
-                             "maps": L.geoJSON(null, styleMaps).on('click', handleClick)
-                            };
-            overlaysHash[val] = tileLayers[val]
-            overlaysHash[val + "_" + "banners"] = overlays[val]["banners"]
-            overlaysHash[val + "_" + "maps"] = overlays[val]["maps"]
-            overlaysHash[val + "_" + "custom"] = overlays[val]["custom"]
+    const styleMaps = {
+        style: function(feature) {
+            return {color: IDcolors[feature.properties.scale]};
         }
-        
-        loadJSON('banners.json', function(response) {
-            // Parse JSON string into object
-            markers = JSON.parse(response);
-            allBanners = markers;
+    };
 
-            for ( var i=0; i < markers.length; ++i ) {
-                var geoJsonFeature = {
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [markers[i].X, markers[i].Z]
-                    },
-                    properties: {
-                        title: markers[i].name,
-                        name: markers[i].name,
-                        color: markers[i].color,
-                        dimension: markers[i].dimension
-                    }
-                };
-                
-                var marker = L.marker([markers[i].Z, markers[i].X], {
-                    title: markers[i].name, 
-                    icon: L.divIcon({
-                        className: 'banner-marker',
-                        html: '<img class="banner-image" src="./assets/banner-images/' + markers[i].color + 'banner.png"/><span class="banner-name">' + markers[i].name + '</span>'
-                    })
-                });
-                
-                marker.feature = geoJsonFeature;
-                marker.addTo(overlays[markers[i].dimension]['banners']);
-            }
-        });
+    const styleCustom = {
+        style: function(feature) {
+            return feature.properties.style;
+        }
+    };
 
-        loadJSON('custom.json', function(response) {
-            // Parse JSON string into object
-            markers = JSON.parse(response);
-
-            for ( var i=0; i < markers.length; ++i ) {
-                overlays[markers[i].properties.dimension]['custom'].addData(markers[i]);
-            };
-        });
-        
-        
-        loadJSON('maps.json', function(response) {
-            // Parse JSON string into object
-            markers = JSON.parse(response);
-
-            for ( var i=0; i < markers.length; ++i ) {
-                overlays[markers[i].properties.dimension]['maps'].addData(markers[i]);
-            };
-        });
-        map = L.map('map', {
-            crs: L.CRS.pr,
-            layers: [tileLayers["minecraft@overworld"]],
-            //touchZoom: false
-        });
-            
-
-        L.control.mousePosition().addTo(map);
-
-        // Home button control
-        var homeButton = L.Control.extend({
-            options: {
-                position: 'topleft'
-            },
-            onAdd: function(map) {
-                var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-                var button = L.DomUtil.create('a', '', container);
-                button.href = '#';
-                button.title = 'Zoom to all markers';
-                button.innerHTML = '🏠';
-                button.style.width = '30px';
-                button.style.height = '30px';
-                button.style.lineHeight = '30px';
-                button.style.textAlign = 'center';
-                button.style.fontSize = '16px';
-                
-                L.DomEvent.on(button, 'click', function(e) {
-                    L.DomEvent.preventDefault(e);
-                    var group = new L.featureGroup([overlays[currentDimension]["banners"]]);
-                    map.fitBounds(group.getBounds().pad(0.1));
-                });
-                
-                return container;
-            }
-        });
-        
-        map.addControl(new homeButton());
-
-        map.fitBounds([[-1000, -1000], [1000, 1000]]);
-               
-        console.log("adding initial layer")
-        control = L.control.layers(tileLayers, overlays["minecraft@overworld"]);
-        control.addTo(map);
-        var hash = new L.Hash(map, overlaysHash);
-
-        var currentDimension = "minecraft@overworld";
-        
-        // Add Leaflet Control Search
-        var searchControl = new L.Control.Search({
+    function createSearchControl(dimension) {
+        return new L.Control.Search({
             position: 'topleft',
-            layer: overlays[currentDimension]["banners"],
+            layer: overlays[dimension]["banners"],
             initial: false,
             zoom: 18,
             marker: false,
@@ -288,46 +164,169 @@
             autoType: false,
             minLength: 1
         });
-        
-        map.addControl(searchControl);
+    }
 
-        map.on('baselayerchange', function (event) {
-            map.closePopup();
-            currentDimension = event.name;
-            map.removeControl(searchControl);
-            
-            // Create new search control with current dimension layer
-            searchControl = new L.Control.Search({
-                position: 'topleft',
-                layer: overlays[currentDimension]["banners"],
-                initial: false,
-                zoom: 18,
-                marker: false,
-                propertyName: 'title',
-                autoCollapse: true,
-                autoType: false,
-                minLength: 1
-            });
-            map.addControl(searchControl);
-            
-            Object.entries(overlays).forEach(overlaydim => {
-                Object.entries(overlaydim[1]).forEach(overlay => {
-                
-                    overlay[1].remove()
+    function remControl(event) {
+        control.remove();
+        control = L.control.layers(tileLayers, overlays[event.name]);
+        control.addTo(map);
+    }
+
+    async function loadCustomOverlays() {
+        try {
+            const manifest = await loadJSON('overlays.json');
+            const overlayPromises = manifest.overlays.map(file =>
+                loadJSON(file).catch(err => {
+                    console.warn(`Could not load overlay: ${file}`, err);
+                    return [];
+                })
+            );
+            const overlayDataSets = await Promise.all(overlayPromises);
+
+            for (const overlayData of overlayDataSets) {
+                for (const feature of overlayData) {
+                    overlays[feature.properties.dimension]['custom'].addData(feature);
+                }
+            }
+        } catch (err) {
+            console.log('No overlays.json manifest found, skipping custom overlays');
+        }
+    }
+
+    async function init() {
+        const mapsData = await loadJSON('maps.json');
+
+        for (const marker of mapsData) {
+            dimSet.add(marker.properties.dimension);
+        }
+
+        for (const val of dimSet) {
+            tileLayers[val] = L.tileLayer(tilesUrl, {id: val, maxZoom: 20, maxNativeZoom: 17});
+            overlays[val] = {
+                "banners": L.markerClusterGroup(clusterGroupConfig),
+                "custom": L.geoJSON(null, styleCustom),
+                "maps": L.geoJSON(null, styleMaps).on('click', handleClick)
+            };
+            overlaysHash[val] = tileLayers[val];
+            overlaysHash[val + "_" + "banners"] = overlays[val]["banners"];
+            overlaysHash[val + "_" + "maps"] = overlays[val]["maps"];
+            overlaysHash[val + "_" + "custom"] = overlays[val]["custom"];
+        }
+
+        const [bannersData] = await Promise.all([
+            loadJSON('banners.json'),
+            loadCustomOverlays()
+        ]);
+
+        allBanners = bannersData;
+
+        for (const bannerItem of bannersData) {
+            const geoJsonFeature = {
+                type: "Feature",
+                geometry: {
+                    type: "Point",
+                    coordinates: [bannerItem.X, bannerItem.Z]
+                },
+                properties: {
+                    title: bannerItem.name,
+                    name: bannerItem.name,
+                    color: bannerItem.color,
+                    dimension: bannerItem.dimension
+                }
+            };
+
+            const marker = L.marker([bannerItem.Z, bannerItem.X], {
+                title: bannerItem.name,
+                icon: L.divIcon({
+                    className: 'banner-marker',
+                    html: `<img class="banner-image" src="./assets/banner-images/${bannerItem.color}banner.png"/><span class="banner-name">${bannerItem.name}</span>`
                 })
             });
-            function remControl(e) {
-                control.remove()
-                control = L.control.layers(tileLayers, overlays[e.name])
-                control.addTo(map)
-            }
-            remControl(event)
-            overlays[currentDimension]["banners"].addTo(map);
+
+            marker.feature = geoJsonFeature;
+            marker.addTo(overlays[bannerItem.dimension]['banners']);
+        }
+
+        for (const mapFeature of mapsData) {
+            overlays[mapFeature.properties.dimension]['maps'].addData(mapFeature);
+        }
+
+        map = L.map('map', {
+            crs: L.CRS.pr,
+            layers: [tileLayers["minecraft@overworld"]]
         });
-});
 
+        L.control.mousePosition().addTo(map);
 
+        const homeButton = L.Control.extend({
+            options: {
+                position: 'topleft'
+            },
+            onAdd: function(map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                const button = L.DomUtil.create('a', '', container);
+                button.href = '#';
+                button.title = 'Zoom to all markers';
+                button.innerHTML = '🏠';
+                button.style.width = '30px';
+                button.style.height = '30px';
+                button.style.lineHeight = '30px';
+                button.style.textAlign = 'center';
+                button.style.fontSize = '16px';
 
+                L.DomEvent.on(button, 'click', function(e) {
+                    L.DomEvent.preventDefault(e);
+                    const group = new L.featureGroup([overlays[currentDimension]["banners"]]);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                });
+
+                return container;
+            }
+        });
+
+        map.addControl(new homeButton());
+
+        map.fitBounds([[-1000, -1000], [1000, 1000]]);
+
+        console.log("adding initial layer");
+        control = L.control.layers(tileLayers, overlays["minecraft@overworld"]);
+        control.addTo(map);
+        const hash = new L.Hash(map, overlaysHash);
+
+        searchControl = createSearchControl(currentDimension);
+        map.addControl(searchControl);
+
+        map.on('baselayerchange', function(event) {
+            map.closePopup();
+
+            // Remember which overlay types are currently selected so the
+            // selection carries over to the new dimension.
+            const activeOverlayTypes = Object.entries(overlays[currentDimension])
+                .filter(([overlayName, overlay]) => map.hasLayer(overlay))
+                .map(([overlayName]) => overlayName);
+
+            currentDimension = event.name;
+            map.removeControl(searchControl);
+
+            searchControl = createSearchControl(currentDimension);
+            map.addControl(searchControl);
+
+            for (const [dimName, dimOverlays] of Object.entries(overlays)) {
+                for (const [overlayName, overlay] of Object.entries(dimOverlays)) {
+                    overlay.remove();
+                }
+            }
+
+            remControl(event);
+
+            // Re-apply the previously selected overlays for the new dimension.
+            for (const overlayName of activeOverlayTypes) {
+                overlays[currentDimension][overlayName].addTo(map);
+            }
+        });
+    }
+
+    init();
 
 </script>
 </body>
