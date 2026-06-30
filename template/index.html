@@ -18,21 +18,27 @@
 
     <script src="./assets/js/leaflet-fullHash.js"></script>
 
-    <link rel="stylesheet" href="./assets/css/L.Control.MousePosition.css"/>
-    <script src="./assets/js/L.Control.MousePosition.js"></script>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css"/>
-    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="./assets/css/MarkerCluster.css"/>
+    <link rel="stylesheet" href="./assets/css/MarkerCluster.Default.css"/>
+    <script src="./assets/js/leaflet.markercluster.js"></script>
 
-    <script src='https://unpkg.com/@mapbox/leaflet-pip@latest/leaflet-pip.js'></script>
+    <script src="./assets/js/leaflet-pip.js"></script>
 
     <!-- Leaflet Control Search Plugin -->
-    <link rel="stylesheet" href="./assets/css//leaflet-search.min.css"/>
+    <link rel="stylesheet" href="./assets/css/leaflet-search.min.css"/>
     <script src="./assets/js/leaflet-search.min.js"></script>
 
     <style>
         .leaflet-control-search input {
             font-size: 1rem;
+        }
+        .leaflet-container .leaflet-control-mouseposition {
+            background-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 5px #bbb;
+            padding: 0 5px;
+            margin: 0;
+            color: #333;
+            font: 11px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
         }
     </style>
 </head>
@@ -256,7 +262,27 @@
             layers: [tileLayers["minecraft@overworld"]]
         });
 
-        L.control.mousePosition().addTo(map);
+        // Inline mouse-position control (replaces the L.Control.MousePosition
+        // plugin): shows Minecraft block X/Z plus chunk and region coordinates.
+        const MousePosition = L.Control.extend({
+            options: { position: 'bottomleft' },
+            onAdd: function(map) {
+                this._container = L.DomUtil.create('div', 'leaflet-control-mouseposition');
+                L.DomEvent.disableClickPropagation(this._container);
+                map.on('mousemove', this._onMouseMove, this);
+                return this._container;
+            },
+            onRemove: function(map) {
+                map.off('mousemove', this._onMouseMove, this);
+            },
+            _onMouseMove: function(e) {
+                const x = Math.round(e.latlng.lng);
+                const z = Math.round(e.latlng.lat);
+                this._container.innerHTML =
+                    `XZ: ${x} / ${z}&nbsp;&nbsp;Chunk: ${x >> 4} ${z >> 4}&nbsp;&nbsp;Region: ${x >> 9} ${z >> 9}`;
+            }
+        });
+        new MousePosition().addTo(map);
 
         const homeButton = L.Control.extend({
             options: {

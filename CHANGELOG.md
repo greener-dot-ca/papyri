@@ -6,6 +6,15 @@ Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.3.0] - 2026-06-30
+This version includes changes to the template files, run `papyri` with `--copytemplate` at least once.
+### Changed
+- all web map dependencies are now vendored locally — no runtime CDN requests, fully offline
+- updated Leaflet 1.4.0 -> 1.9.4, leaflet.markercluster 1.4.1 -> 1.5.3, leaflet-search -> 4.0.0
+- pinned leaflet-pip to 1.1.0 (was loaded unpinned as `@latest`)
+### Removed
+- L.Control.MousePosition plugin, replaced with a small inline control showing block/chunk/region coords
+
 # [2.2.0] - 2026-06-30
 ### Added
 - custom GeoJSON overlays via an `overlays.json` manifest
