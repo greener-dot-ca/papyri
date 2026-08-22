@@ -136,11 +136,11 @@ def findMapFiles(inputFolder):
     
     folderTree = list(os.walk(inputFolder))
     
-    dataFolders = [f for f in folderTree if f[0].endswith(os.sep + "data")]
+    dataFolders = [f for f in folderTree if f[0].endswith(os.sep + "data/minecraft/maps")]
     
     for folder in dataFolders:
-        maybeMapFiles = [os.path.join(folder[0], f) for f in folder[2] if f.startswith("map_") and f.endswith(".dat")]
-        if "idcounts.dat" in folder[2]:
+        maybeMapFiles = [os.path.join(folder[0], f) for f in folder[2] if f.endswith(".dat") and not f.startswith("last_id")]
+        if "last_id.dat" in folder[2]:
             logging.info("Found %s maps in %s", len(maybeMapFiles), folder[0])
             mapFiles = maybeMapFiles
     
@@ -260,10 +260,10 @@ def makeMaps(worldFolder, outputFolder, unlimitedTracking=False):
     
  
     mapDatFiles = findMapFiles(worldFolder)
-    for mapDatFile in tqdm(mapDatFiles, "map_*.dat -> nbt".ljust(24), bar_format="{l_bar}{bar}"):
+    for mapDatFile in tqdm(mapDatFiles, "*.dat -> nbt".ljust(24), bar_format="{l_bar}{bar}"):
         mapNbtFile = nbtlib.load(mapDatFile)
         mapNbt = mapNbtFile["data"]
-        mapId = int(os.path.basename(mapDatFile)[4:-4])
+        mapId = int(os.path.basename(mapDatFile)[0:-4])
         epoch = int(os.path.getmtime(mapDatFile))
         nbtMapData.append({"epoch": epoch, "id": mapId, "nbt": mapNbt})
 
