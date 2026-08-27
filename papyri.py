@@ -26,7 +26,7 @@ __author__ = "Jason Green"
 __copyright__ = "Copyright 2025, Tesseract Designs"
 __credits__ = ["Jason Green"]
 __license__ = "MIT"
-__version__ = "2.4.0"
+__version__ = "2.5.0"
 __maintainer__ = "Jason Green"
 __email__ = "jason@green.io"
 __status__ = "release"
@@ -136,13 +136,25 @@ def findMapFiles(inputFolder):
     
     folderTree = list(os.walk(inputFolder))
     
-    dataFolders = [f for f in folderTree if f[0].endswith(os.sep + "data")]
+    # 26.1 moved the maps to data/minecraft/maps/<id>.dat and renamed
+    # idcounts.dat to last_id.dat, older worlds keep data/map_<id>.dat
+    newMapsFolder = os.sep.join(["", "data", "minecraft", "maps"])
+    dataFolders = [f for f in folderTree
+                   if f[0].endswith(newMapsFolder) or f[0].endswith(os.sep + "data")]
     
     for folder in dataFolders:
-        maybeMapFiles = [os.path.join(folder[0], f) for f in folder[2] if f.startswith("map_") and f.endswith(".dat")]
-        if "idcounts.dat" in folder[2]:
-            logging.info("Found %s maps in %s", len(maybeMapFiles), folder[0])
-            mapFiles = maybeMapFiles
+        if "last_id.dat" in folder[2]:
+            maybeMapFiles = [os.path.join(folder[0], f) for f in folder[2]
+                             if f.endswith(".dat") and f != "last_id.dat"]
+        elif "idcounts.dat" in folder[2]:
+            maybeMapFiles = [os.path.join(folder[0], f) for f in folder[2]
+                             if f.startswith("map_") and f.endswith(".dat")]
+        else:
+            continue
+        if mapFiles:
+            logging.warning("Found more than one world, using the maps in %s", folder[0])
+        logging.info("Found %s maps in %s", len(maybeMapFiles), folder[0])
+        mapFiles = maybeMapFiles
     
     if not mapFiles:
         logging.info("Didn't find any maps, did you specify the correct world location?")
@@ -260,10 +272,11 @@ def makeMaps(worldFolder, outputFolder, unlimitedTracking=False):
     
  
     mapDatFiles = findMapFiles(worldFolder)
-    for mapDatFile in tqdm(mapDatFiles, "map_*.dat -> nbt".ljust(24), bar_format="{l_bar}{bar}"):
+    for mapDatFile in tqdm(mapDatFiles, "*.dat -> nbt".ljust(24), bar_format="{l_bar}{bar}"):
         mapNbtFile = nbtlib.load(mapDatFile)
         mapNbt = mapNbtFile["data"]
-        mapId = int(os.path.basename(mapDatFile)[4:-4])
+        # data/map_<id>.dat pre 26.1, data/minecraft/maps/<id>.dat after
+        mapId = int(os.path.basename(mapDatFile)[:-4].removeprefix("map_"))
         epoch = int(os.path.getmtime(mapDatFile))
         nbtMapData.append({"epoch": epoch, "id": mapId, "nbt": mapNbt})
 

@@ -6,6 +6,14 @@ Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.5.0] - 2026-08-27
+### Added
+- support for the Minecraft 26.1+ world layout: maps are read from `data/minecraft/maps/<id>.dat` with `last_id.dat` as the marker
+- warning when more than one world is found under the given path, naming the one whose maps are used
+### Changed
+- pre-26.1 worlds (`data/map_<id>.dat` with `idcounts.dat`) are still detected, the layout is picked per world folder
+- progress bar label is now `*.dat -> nbt`, since map files are no longer all named `map_*.dat`
+
 # [2.4.0] - 2026-06-30
 This version includes changes to the template files, run `papyri` with `--copytemplate` at least once.
 ### Added
