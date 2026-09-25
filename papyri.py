@@ -28,7 +28,7 @@ __credits__ = ["Jason Green"]
 __license__ = "MIT"
 __version__ = "2.6.0"
 __maintainer__ = "Jason Green"
-__email__ = "jason@green.io"
+__email__ = "root@greener.ca"
 __status__ = "release"
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
