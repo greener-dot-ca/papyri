@@ -20,8 +20,6 @@
     <link rel="stylesheet" href="./assets/css/leaflet.css"/>
     <script src="./assets/js/leaflet.js"></script>
 
-    <script src="./assets/js/leaflet-fullHash.js"></script>
-
     <link rel="stylesheet" href="./assets/css/MarkerCluster.css"/>
     <link rel="stylesheet" href="./assets/css/MarkerCluster.Default.css"/>
     <script src="./assets/js/leaflet.markercluster.js"></script>
@@ -56,7 +54,6 @@
     let tileLayers = {};
     const tilesUrl = './tiles/{id}/{z}/{x}/{y}.png';
     let overlays = {};
-    let overlaysHash = {};
     // Per-dimension search records: { displayText: loc } where loc is an
     // L.latLng carrying .overlay (which overlay it belongs to) and, for maps,
     // .bounds. This is exactly the shape the search plugin indexes.
@@ -216,6 +213,42 @@
         });
     }
 
+    // The URL hash mirrors the view so a copied link restores it:
+    // #zoom/x/z/dimension-dimension_overlay-... (the format the old
+    // leaflet-fullHash plugin wrote, so existing links keep working).
+    function writeHash() {
+        const c = map.getCenter();
+        const keys = [currentDimension, ...Object.keys(overlays[currentDimension])
+            .filter(name => map.hasLayer(overlays[currentDimension][name]))
+            .map(name => `${currentDimension}_${name}`)];
+        history.replaceState(null, '', `#${map.getZoom()}/${Math.round(c.lng)}/${Math.round(c.lat)}/${keys.join('-')}`);
+    }
+
+    function readHash() {
+        const parts = location.hash.slice(1).split('/');
+        const [zoom, x, z] = parts.map(parseFloat);
+        if ([zoom, x, z].some(isNaN)) {
+            return false;
+        }
+        const keys = (parts[3] || '').split('-');
+        const dim = keys.find(k => tileLayers[k]);
+        if (dim && dim !== currentDimension) {
+            // Adding a base layer fires baselayerchange, which switches
+            // currentDimension and the layers control.
+            tileLayers[currentDimension].remove();
+            tileLayers[dim].addTo(map);
+        }
+        for (const [name, overlay] of Object.entries(overlays[currentDimension])) {
+            if (keys.includes(`${currentDimension}_${name}`)) {
+                overlay.addTo(map);
+            } else {
+                overlay.remove();
+            }
+        }
+        map.setView([z, x], zoom);
+        return true;
+    }
+
     function remControl(event) {
         control.remove();
         control = L.control.layers(tileLayers, overlays[event.name]);
@@ -257,10 +290,6 @@
                 "custom": L.geoJSON(null, styleCustom),
                 "maps": L.geoJSON(null, styleMaps).on('click', handleClick)
             };
-            overlaysHash[val] = tileLayers[val];
-            overlaysHash[val + "_" + "banners"] = overlays[val]["banners"];
-            overlaysHash[val + "_" + "maps"] = overlays[val]["maps"];
-            overlaysHash[val + "_" + "custom"] = overlays[val]["custom"];
             searchIndex[val] = {};
         }
 
@@ -452,7 +481,6 @@
         console.log("adding initial layer");
         control = L.control.layers(tileLayers, overlays["minecraft@overworld"]);
         control.addTo(map);
-        const hash = new L.Hash(map, overlaysHash);
 
         // The control reads searchIndex[currentDimension] live, so it never
         // needs rebuilding — it always reflects the current dimension.
@@ -483,6 +511,12 @@
                 overlays[currentDimension][overlayName].addTo(map);
             }
         });
+
+        // Registered after the baselayerchange handler above, so on a
+        // dimension switch the hash is written once the switch is done.
+        readHash();
+        map.on('moveend overlayadd overlayremove baselayerchange', writeHash);
+        window.addEventListener('hashchange', readHash);
     }
 
     init();

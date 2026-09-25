@@ -1,4 +1,4 @@
-# papyri version 2.1
+# papyri version 2.6
 
 Papyri is a Java Minecraft map item web presenter. It will show all maps and banners created on a server positioned and scaled properly, creating a mosaic of your world as explored with maps. Since many maps can be created of the same area, Papyri will prioritize rendering so that maps with higher detail are rendered on top of maps of lower detail and maps at the same detail are rendered in order from oldest updated to newest updated.
 
@@ -86,5 +86,9 @@ Each file listed in the manifest should be a JSON array of GeoJSON features with
 The web map draws a faint grid aligned to Minecraft's `.mca` region files (one line every 512 blocks). It sits beneath every other layer, so it only shows through where the map hasn't been rendered yet, and it lines up exactly with the X/Z coordinates shown in the mouse-position readout.
 
 Both the grid and map panning are limited to the bounds of a Minecraft world (the default world border, ±29,999,984 blocks from origin). If your server uses a different world border, change the `WORLD_BORDER` constant near the top of the template's `index.html`.
+
+## Shareable links
+
+The page URL tracks the current view: `#zoom/x/z/<dimension>-<dimension>_<overlay>-...`, e.g. `#15/550/600/minecraft@the_nether-minecraft@the_nether_banners`. Copy the link to share exactly what you're looking at: position, zoom, dimension and enabled overlays.
 
 This project is licensed under the terms of the MIT license.

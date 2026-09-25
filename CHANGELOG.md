@@ -6,6 +6,13 @@ Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.6.0] - 2026-09-24
+This version includes changes to the template files, run `papyri` with `--copytemplate` at least once.
+### Fixed
+- web map links now restore the full view: position, zoom, dimension and enabled overlays (restoring a link used to drop the region grid and could leave the dimension out of sync with the layers control)
+### Removed
+- leaflet-fullHash plugin, replaced with a small inline URL hash sync using the same link format, so existing links keep working
+
 # [2.5.0] - 2026-08-27
 ### Added
 - support for the Minecraft 26.1+ world layout: maps are read from `data/minecraft/maps/<id>.dat` with `last_id.dat` as the marker
